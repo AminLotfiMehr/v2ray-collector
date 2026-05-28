@@ -1,0 +1,44 @@
+name: V2Ray Config Collector
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout your repo
+        uses: actions/checkout@v4
+
+      - name: Clone main V2ray collector
+        run: |
+          git clone https://github.com/AminLotfiMehr/V2ray.git temp-collector
+          cp -r temp-collector/* ./
+          cp -r temp-collector/.github ./
+          rm -rf temp-collector
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install -r config/requirements.txt
+
+      - name: Run collector
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python src/collector_git.py
+          python src/telegram_collector.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git diff --quiet && git diff --staged --quiet || git commit -m "Auto update configs"
+          git push
